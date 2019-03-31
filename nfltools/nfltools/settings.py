@@ -37,6 +37,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'economy.apps.EconomyConfig',
+    'player_stats.apps.PlayerStatsConfig',
+    'team_stats.apps.TeamStatsConfig',
+    'wagers.apps.WagersConfig'
 ]
 
 MIDDLEWARE = [
