@@ -15,6 +15,7 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+SPORTS_DB_API = 4013079
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.1/howto/deployment/checklist/
@@ -40,6 +41,7 @@ INSTALLED_APPS = [
     'economy.apps.EconomyConfig',
     'player_stats.apps.PlayerStatsConfig',
     'team_stats.apps.TeamStatsConfig',
+    'sports_db.apps.SportsDbConfig',
     'wagers.apps.WagersConfig'
 ]
 
