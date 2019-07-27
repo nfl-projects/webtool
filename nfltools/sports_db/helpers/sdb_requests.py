@@ -107,11 +107,10 @@ class SDBProvider:
                 with transaction.atomic():
                     if response.json()['player'] and type(response.json()['player']) is list:
                         for player in response.json()['player']:
-                            try:
-                                found_player = Players.objects.get(player_id=int(player['idPlayer']))
+                            found_player = self.get_player_by_id(player_id=int(player['idPlayer']))
+                            if found_player:
                                 found_player.delete() #keep player info up to date
-                            except Players.DoesNotExist:
-                                print("new player")
+                            
                             new_player = Players(player_name=player['strPlayer'],
                                                 player_id=player['idPlayer'],
                                                 birthday=player['dateBorn'],
@@ -127,3 +126,5 @@ class SDBProvider:
                 print("Bad response")
         else:
             print("Team not loaded in database for player")
+
+    
