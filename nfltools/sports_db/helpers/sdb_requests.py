@@ -7,7 +7,6 @@ from django.conf import settings
 from django.db import transaction
 from sports_db.models import Teams, Players, Events, Leagues
 
-
 class SDBProvider:
     def __init__(self):
         self.key = settings.SPORTS_DB_API
@@ -16,15 +15,30 @@ class SDBProvider:
 
     
     def get_league_by_id(self,league_id):
-        return(Leagues.objects.get(league_id=league_id))
+        try:
+            return(Leagues.objects.get(league_id=league_id))
+        except Leagues.DoesNotExist:
+            return None #League not found for that id
+        except Exception as error:
+            return error #Error accessing database
 
 
     def get_team_by_id(self,team_id):
-        return(Teams.objects.get(team_id=team_id))
+        try:
+            return(Teams.objects.get(team_id=team_id))
+        except Teams.DoesNotExist:
+            return None #Team not found for that id
+        except Exception as error:
+            return error #Error accessing database
 
     
     def get_player_by_id(self,player_id):
-        return(Players.objects.get(player_id=player_id))
+        try:
+            return(Players.objects.get(player_id=player_id))
+        except Players.DoesNotExist:
+            return None #Player not found for that id
+        except Exception as error:
+            return error #Error accessing database
 
     
     def load_all_leagues(self):
@@ -35,14 +49,17 @@ class SDBProvider:
         response = requests.get(url)
         
         with transaction.atomic():
-            if response.json()['leagues'] and type(response.json()['leagues']) is list:
-                for league in response.json()['leagues']:
-                    if int(league['idLeague']) not in already_leagues:
-                        new_league = Leagues(league_name=league['strLeague'],
-                                            league_id=league['idLeague'],
-                                            sport=league['strSport'],
-                                            alt_league_name=league['strLeagueAlternate'])
-                        new_league.save()
+            try:
+                if response.json()['leagues'] and type(response.json()['leagues']) is list:
+                    for league in response.json()['leagues']:
+                        if int(league['idLeague']) not in already_leagues:
+                            new_league = Leagues(league_name=league['strLeague'],
+                                                league_id=league['idLeague'],
+                                                sport=league['strSport'],
+                                                alt_league_name=league['strLeagueAlternate'])
+                            new_league.save()
+            except json.decoder.JSONDecodeError:
+                print("response.json() failed decoding")
 
     
     def load_all_teams_in_league(self, league_id):
@@ -54,32 +71,59 @@ class SDBProvider:
         response = requests.get(url)
         
         with transaction.atomic():
-            if response.json()['teams'] and type(response.json()['teams']) is list:
-                for team in response.json()['teams']:
-                    if int(team['idTeam']) not in already_teams:
-                        new_team = Teams(team_name=team['strTeam'],
-                                        team_id=team['idTeam'],
-                                        short_name=team['strTeamShort'],
-                                        alt_team_name=team['strAlternate'],
-                                        team_league_id=team['idLeague'],
-                                        league=league_object)
-                        new_team.save()
+            try:
+                if response.json()['teams'] and type(response.json()['teams']) is list:
+                    for team in response.json()['teams']:
+                        if int(team['idTeam']) not in already_teams:
+                            new_team = Teams(team_name=team['strTeam'],
+                                            team_id=team['idTeam'],
+                                            short_name=team['strTeamShort'],
+                                            alt_team_name=team['strAlternate'],
+                                            team_league_id=team['idLeague'],
+                                            league=league_object)
+                            new_team.save()
+                        else:
+                            print(f"Team ID {team['idTeam']} already in database")
+            except json.decoder.JSONDecodeError:
+                print("response.json() failed decoding")
 
     
     def load_players_by_team(self, team_id):
         team_object = self.get_team_by_id(team_id)
-        #already_players = Players.objects.all().values_list('player_id','current_id',flat=True)
-        #already_players = Players.objects.all()
-
-        url = f'{self.base}{self.key}/lookup_all_players.php?id={team_id}'
-
-        response = requests.get(url)
         
-        with transaction.atomic():
-            if response.json()['player'] and type(response.json()['player']) is list:
-                for player in response.json()['player']:
-                    if int(player['idPlayer']) in already_players:
-                        if int(player['idPlayer']) 
+        if team_object:
+            url = f'{self.base}{self.key}/lookup_all_players.php?id={team_id}'
 
-        
-        
+            response = requests.get(url)
+            
+            try:
+                r_json = response.json()
+                good_response = True
+            except json.decoder.JSONDecodeError:
+                print("response.json() failed decoding")
+                good_response = False
+            
+            if good_response:
+                with transaction.atomic():
+                    if response.json()['player'] and type(response.json()['player']) is list:
+                        for player in response.json()['player']:
+                            try:
+                                found_player = Players.objects.get(player_id=int(player['idPlayer']))
+                                found_player.delete() #keep player info up to date
+                            except Players.DoesNotExist:
+                                print("new player")
+                            new_player = Players(player_name=player['strPlayer'],
+                                                player_id=player['idPlayer'],
+                                                birthday=player['dateBorn'],
+                                                position=player['strPosition'],
+                                                sport=player['strSport'],
+                                                college=player['strCollege'],
+                                                height=player['strHeight'],
+                                                weight=player['strWeight'],
+                                                current_id=player['idTeam'],
+                                                current_team=team_object)
+                            new_player.save()
+            else:
+                print("Bad response")
+        else:
+            print("Team not loaded in database for player")

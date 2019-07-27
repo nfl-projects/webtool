@@ -23,7 +23,7 @@ class Players(models.Model):
     birthday = models.DateField()
     position = models.CharField(max_length=30)
     sport = models.CharField(max_length=30)
-    college = models.CharField(max_length=100)
+    college = models.CharField(max_length=100, blank=True, null=True)
     height = models.CharField(max_length=50)
     weight = models.CharField(max_length=50)
     current_id = models.IntegerField()
