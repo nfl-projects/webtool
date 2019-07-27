@@ -5,7 +5,7 @@ import json
 
 from django.conf import settings
 from django.db import transaction
-from sports_db.models import Teams, Players, Events, Leagues
+from sports_db.models import Teams, Players, Events, Leagues, Seasons
 
 class SDBProvider:
     def __init__(self):
@@ -20,7 +20,23 @@ class SDBProvider:
         except Leagues.DoesNotExist:
             return None #League not found for that id
         except Exception as error:
-            return error #Error accessing database
+            print(f"Error {error}")
+            return None #Error accessing database
+
+
+    def get_season_by_id_and_league(self,season_id,league_id):
+        league = self.get_league_by_id(league_id)
+        if league:
+            try:
+                return(Seasons.objects.get(season_id=season_id,league=league))
+            except Seasons.DoesNotExist:
+                return None #Season not found for that id and league
+            except Exception as error:
+                print(f"Error {error}")
+                return None #Error accessing database
+        else:
+            print("League not in database")
+            return None
 
 
     def get_team_by_id(self,team_id):
@@ -29,7 +45,8 @@ class SDBProvider:
         except Teams.DoesNotExist:
             return None #Team not found for that id
         except Exception as error:
-            return error #Error accessing database
+            print(f"Error {error}")
+            return None #Error accessing database
 
     
     def get_player_by_id(self,player_id):
@@ -38,7 +55,8 @@ class SDBProvider:
         except Players.DoesNotExist:
             return None #Player not found for that id
         except Exception as error:
-            return error #Error accessing database
+            print(f"Error {error}")
+            return None #Error accessing database
 
     
     def load_all_leagues(self):
@@ -70,22 +88,25 @@ class SDBProvider:
 
         response = requests.get(url)
         
-        with transaction.atomic():
-            try:
-                if response.json()['teams'] and type(response.json()['teams']) is list:
-                    for team in response.json()['teams']:
-                        if int(team['idTeam']) not in already_teams:
-                            new_team = Teams(team_name=team['strTeam'],
-                                            team_id=team['idTeam'],
-                                            short_name=team['strTeamShort'],
-                                            alt_team_name=team['strAlternate'],
-                                            team_league_id=team['idLeague'],
-                                            league=league_object)
-                            new_team.save()
-                        else:
-                            print(f"Team ID {team['idTeam']} already in database")
-            except json.decoder.JSONDecodeError:
-                print("response.json() failed decoding")
+        if league_object:
+            with transaction.atomic():
+                try:
+                    if response.json()['teams'] and type(response.json()['teams']) is list:
+                        for team in response.json()['teams']:
+                            if int(team['idTeam']) not in already_teams:
+                                new_team = Teams(team_name=team['strTeam'],
+                                                team_id=team['idTeam'],
+                                                short_name=team['strTeamShort'],
+                                                alt_team_name=team['strAlternate'],
+                                                team_league_id=team['idLeague'],
+                                                league=league_object)
+                                new_team.save()
+                            else:
+                                print(f"Team ID {team['idTeam']} already in database")
+                except json.decoder.JSONDecodeError:
+                    print("response.json() failed decoding")
+        else:
+            print("League not in database")
 
     
     def load_players_by_team(self, team_id):
@@ -126,5 +147,22 @@ class SDBProvider:
                 print("Bad response")
         else:
             print("Team not loaded in database for player")
-
     
+
+    def load_seasons_by_league(self,league_id):
+        url = f'{self.base}{self.key}/search_all_seasons.php?id={league_id}'
+        response = requests.get(url)
+        with transaction.atomic():
+            try:
+                if response.json()['seasons'] and type(response.json()['seasons']) is list:
+                    for season in response.json()['seasons']:
+                        if self.get_season_by_id_and_league(season_id=season['strSeason'],league_id=league_id):
+                            continue
+                        else:
+                            league = self.get_league_by_id(league_id=league_id)
+                            new_season = Seasons(season_id=season['strSeason'],league=league)
+                            new_season.save()
+                else:
+                    print("Cannot process response")
+            except json.decoder.JSONDecodeError:
+                print("response.json() failed decoding")

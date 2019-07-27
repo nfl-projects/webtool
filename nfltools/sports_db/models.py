@@ -28,10 +28,23 @@ class Players(models.Model):
     weight = models.CharField(max_length=50)
     current_id = models.IntegerField()
     current_team = models.ForeignKey('Teams', on_delete=models.CASCADE, default=None)
+    #year here or different table?
+
+
+class Seasons(models.Model):
+    season_id = models.CharField(max_length=10)
+    league = models.ForeignKey('Leagues', on_delete=models.CASCADE, default=None)
 
 
 class Events(models.Model):
     event_name = models.CharField(max_length=100)
     event_id = models.IntegerField()
-    event_date = models.CharField(max_length=250)
-    season_id = models.IntegerField()
+    event_date = models.DateField()
+    event_time = models.TimeField(default=None)
+    sport = models.CharField(max_length=30)
+    season = models.ForeignKey('Seasons', on_delete=models.CASCADE, default=None)
+    home_team = models.ForeignKey('Teams', on_delete=models.CASCADE, default=None, related_name="home")
+    away_team = models.ForeignKey('Teams', on_delete=models.CASCADE, default=None, related_name="away")
+    home_score = models.CharField(max_length=25, default=0)
+    away_score = models.CharField(max_length=25, default=0)
+    result = models.ForeignKey('Teams', on_delete=models.CASCADE, default=None, related_name="winner") #None = tie where appropriate
